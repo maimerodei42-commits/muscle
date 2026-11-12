@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Squat Counter & Timer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .pulse-animation {
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .bg-glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* Custom progress ring styles */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 max-w-md mx-auto">
+
+    <!-- Header -->
+    <header class="text-center py-4">
+        <h1 class="text-2xl font-black tracking-wider text-emerald-400 flex items-center justify-center gap-2">
+            <i class="fa-solid font-bold fa-dumbbell"></i> SQUAT TIMER
+        </h1>
+        <p class="text-xs text-slate-400 mt-1">目標達成に向けて正確なペースをサポート</p>
+    </header>
+
+    <!-- Main Dynamic Area -->
+    <main class="flex-1 flex flex-col justify-center items-center my-2">
+
+        <!-- Setup Screen -->
+        <div id="setupScreen" class="w-full bg-glass p-6 rounded-3xl space-y-6 shadow-2xl">
+            <!-- Set Count Input -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">
+                    <i class="fa-solid fa-layer-group text-emerald-400 mr-1"></i> セット数
+                </label>
+                <div class="flex items-center gap-3">
+                    <button id="btnMinusSet" class="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 text-xl font-bold active:scale-95 transition flex items-center justify-center text-slate-300 hover:text-white">-</button>
+                    <input type="number" id="inputSets" value="3" min="1" max="99" class="w-full text-center bg-slate-900 border border-slate-700 text-3xl font-extrabold rounded-2xl py-2 text-emerald-400 focus:outline-none focus:border-emerald-500">
+                    <button id="btnPlusSet" class="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 text-xl font-bold active:scale-95 transition flex items-center justify-center text-slate-300 hover:text-white">+</button>
+                </div>
+            </div>
+
+            <!-- Reps Per Set Input (Default 50) -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">
+                    <i class="fa-solid fa-rotate-right text-emerald-400 mr-1"></i> 1セットの回数
+                </label>
+                <div class="flex items-center gap-3">
+                    <button id="btnMinusReps" class="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 text-xl font-bold active:scale-95 transition flex items-center justify-center text-slate-300 hover:text-white">-5</button>
+                    <input type="number" id="inputReps" value="50" min="1" max="500" class="w-full text-center bg-slate-900 border border-slate-700 text-3xl font-extrabold rounded-2xl py-2 text-emerald-400 focus:outline-none focus:border-emerald-500">
+                    <button id="btnPlusReps" class="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700 text-xl font-bold active:scale-95 transition flex items-center justify-center text-slate-300 hover:text-white">+5</button>
+                </div>
+            </div>
+
+            <!-- Pace Selection -->
+            <div>
+                <label class="block text-sm font-semibold text-slate-300 mb-2">
+                    <i class="fa-solid fa-gauge-high text-emerald-400 mr-1"></i> ペース（1回あたり）とおすすめ種目
+                </label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button class="pace-btn py-3 px-2 rounded-2xl border text-sm font-bold transition flex flex-col items-center gap-1 border-slate-700 bg-slate-800 text-slate-400" data-pace="3000">
+                        <span>じっくり</span>
+                        <span class="text-xs font-normal opacity-75">3秒</span>
+                    </button>
+                    <button class="pace-btn active-pace py-3 px-2 rounded-2xl border text-sm font-bold transition flex flex-col items-center gap-1 border-emerald-500 bg-emerald-500/20 text-emerald-400" data-pace="2000">
+                        <span>標準</span>
+                        <span class="text-xs font-normal opacity-75">2秒</span>
+                    </button>
+                    <button class="pace-btn py-3 px-2 rounded-2xl border text-sm font-bold transition flex flex-col items-center gap-1 border-slate-700 bg-slate-800 text-slate-400" data-pace="1000">
+                        <span>ハイテンポ</span>
+                        <span class="text-xs font-normal opacity-75">1秒</span>
+                    </button>
+                </div>
+
+                <!-- Exercise Recommendation & Knowledge Card -->
+                <div id="paceAdviceBox" class="mt-3 p-3.5 rounded-2xl bg-slate-900/80 border border-slate-700/80 text-xs space-y-1.5 transition-all">
+                    <div class="flex items-center gap-1.5 font-bold text-emerald-400">
+                        <i class="fa-solid fa-lightbulb"></i>
+                        <span id="adviceTitle">おすすめ：スクワット、腕立て伏せ</span>
+                    </div>
+                    <p id="adviceDesc" class="text-slate-300 leading-relaxed">
+                        反動を使わず正しいフォームを維持できる基本のテンポです。筋肉への負荷と回数のバランスが良く、基礎筋力アップやボディメイクに最も適しています。
+                    </p>
+                </div>
+            </div>
+
+            <!-- Rest Time Display fixed to 15s -->
+            <div class="flex justify-between items-center bg-slate-900/60 p-3 rounded-2xl border border-slate-800">
+                <span class="text-sm text-slate-400 flex items-center gap-2">
+                    <i class="fa-solid fa-bed text-sky-400"></i> セット間休憩
+                </span>
+                <span class="font-bold text-sky-400">15秒</span>
+            </div>
+
+            <!-- Start Button -->
+            <button id="btnStart" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xl rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-98 transition duration-150 uppercase tracking-wider flex items-center justify-center gap-2">
+                <i class="fa-solid fa-play"></i> START
+            </button>
+        </div>
+
+        <!-- Workout Display Screen (Hidden by default) -->
+        <div id="workoutScreen" class="w-full flex-col items-center space-y-6 hidden">
+            
+            <!-- Set Counter Header -->
+            <div class="text-center">
+                <span id="displaySetInfo" class="px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold text-sm tracking-wide">
+                    SET 1 / 3
+                </span>
+            </div>
+
+            <!-- Main Interactive Display Circle -->
+            <div class="relative w-64 h-64 flex items-center justify-center">
+                <svg class="w-full h-full transform -rotate-90">
+                    <circle cx="128" cy="128" r="110" stroke="currentColor" stroke-width="12" class="text-slate-800" fill="transparent" />
+                    <circle id="progressCircle" cx="128" cy="128" r="110" stroke="currentColor" stroke-width="12" class="text-emerald-500 progress-ring__circle" fill="transparent" stroke-dasharray="691" stroke-dashoffset="0" stroke-linecap="round" />
+                </svg>
+
+                <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                    <!-- Status Label -->
+                    <span id="statusLabel" class="text-slate-400 text-sm font-bold mb-1 uppercase tracking-wider">
+                        準備
+                    </span>
+                    <!-- Main Large Display -->
+                    <div id="mainNumber" class="text-6xl font-black text-white tracking-tight my-1">
+                        3
+                    </div>
+                    <!-- Action Guide (Squat Down / Stand Up) -->
+                    <span id="actionGuide" class="text-emerald-400 font-extrabold text-lg h-6">
+                        まもなく開始
+                    </span>
+                </div>
+            </div>
+
+            <!-- Sub Progress / Info -->
+            <div class="w-full bg-glass p-4 rounded-2xl flex justify-around items-center text-center">
+                <div>
+                    <div class="text-xs text-slate-400 font-medium">残りセット</div>
+                    <div id="remainingSets" class="text-xl font-bold text-white mt-1">2</div>
+                </div>
+                <div class="w-px h-8 bg-slate-700"></div>
+                <div>
+                    <div class="text-xs text-slate-400 font-medium">1セット目標</div>
+                    <div id="targetReps" class="text-xl font-bold text-white mt-1">50回</div>
+                </div>
+                <div class="w-px h-8 bg-slate-700"></div>
+                <div>
+                    <div class="text-xs text-slate-400 font-medium">ペース</div>
+                    <div id="paceText" class="text-xl font-bold text-white mt-1">2秒</div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex gap-4 w-full pt-2">
+                <button id="btnPause" class="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl border border-slate-700 active:scale-95 transition flex items-center justify-center gap-2">
+                    <i id="pauseIcon" class="fa-solid fa-pause"></i> <span id="pauseText">一時停止</span>
+                </button>
+                <button id="btnStop" class="flex-1 py-3.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 font-bold rounded-2xl border border-rose-500/30 active:scale-95 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-square"></i> 終了
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center text-xs text-slate-500 py-2">
+        Squat Timer App &copy; 2026
+    </footer>
+
+    <!-- App Logic -->
+    <script>
+        // Web Audio API for fallback Beep sounds
+        let audioCtx = null;
+        function playBeep(freq = 440, type = 'sine', duration = 0.15) {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.error("Audio API error:", e);
+            }
+        }
+
+        // Web Speech API Synthesis
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // Clear current queue
+                const uttr = new SpeechSynthesisUtterance(text);
+                uttr.lang = 'ja-JP';
+                uttr.rate = 1.2;
+                uttr.pitch = 1.0;
+                window.speechSynthesis.speak(uttr);
+            }
+        }
+
+        // DOM Elements
+        const setupScreen = document.getElementById('setupScreen');
+        const workoutScreen = document.getElementById('workoutScreen');
+        
+        const inputSets = document.getElementById('inputSets');
+        const btnMinusSet = document.getElementById('btnMinusSet');
+        const btnPlusSet = document.getElementById('btnPlusSet');
+
+        const inputReps = document.getElementById('inputReps');
+        const btnMinusReps = document.getElementById('btnMinusReps');
+        const btnPlusReps = document.getElementById('btnPlusReps');
+
+        const paceBtns = document.querySelectorAll('.pace-btn');
+        const adviceTitle = document.getElementById('adviceTitle');
+        const adviceDesc = document.getElementById('adviceDesc');
+        const btnStart = document.getElementById('btnStart');
+
+        // Exercise Knowledge Data by Pace
+        const paceAdviceData = {
+            "3000": {
+                title: "おすすめ：スロースクワット、ワイドスクワット",
+                desc: "筋肉が緊張している時間（TUT）を長く保つことで、自重でも高い筋肥大効果が期待できます。特に重力に逆らいながらゆっくりしゃがむ動作（エキセントリック収縮）を意識すると効果的です。"
+            },
+            "2000": {
+                title: "おすすめ：スクワット、腕立て伏せ",
+                desc: "反動を使わず正しいフォームを維持できる基本のテンポです。筋肉への負荷と回数のバランスが良く、大筋群を効率よく鍛えて基礎代謝や筋力を高めるのに最適です。"
+            },
+            "1000": {
+                title: "おすすめ：クランチ（腹筋）、カーフレイズ",
+                desc: "可動域が比較的小さい種目や、回数をこなして筋肉を追い込む種目に適しています。腹筋のように回復が早い筋肉は、テンポよく連続して刺激を与えることで効率よく引き締められます。"
+            }
+        };
+
+        const displaySetInfo = document.getElementById('displaySetInfo');
+        const statusLabel = document.getElementById('statusLabel');
+        const mainNumber = document.getElementById('mainNumber');
+        const actionGuide = document.getElementById('actionGuide');
+        const progressCircle = document.getElementById('progressCircle');
+
+        const remainingSetsDisplay = document.getElementById('remainingSets');
+        const targetRepsDisplay = document.getElementById('targetReps');
+        const paceTextDisplay = document.getElementById('paceText');
+
+        const btnPause = document.getElementById('btnPause');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const pauseText = document.getElementById('pauseText');
+        const btnStop = document.getElementById('btnStop');
+
+        // Circle circumference for progress calculation
+        const CIRCUMFERENCE = 2 * Math.PI * 110;
+        progressCircle.style.strokeDasharray = `${CIRCUMFERENCE}`;
+
+        // State Variables
+        let totalSets = 3;
+        let totalReps = 50;
+        let selectedPaceMs = 2000; // default 2s
+        const restDurationSec = 15; // 15 seconds fixed rest
+
+        let currentSet = 1;
+        let currentRep = 0;
+        let currentState = 'IDLE'; // IDLE, COUNTDOWN, SQUATTING, RESTING, PAUSED, COMPLETED
+        let previousStateBeforePause = '';
+
+        let timerId = null;
+        let squatSubTimerId = null;
+
+        // Settings Controls
+        btnMinusSet.addEventListener('click', () => {
+            let v = parseInt(inputSets.value) || 1;
+            if (v > 1) inputSets.value = v - 1;
+        });
+        btnPlusSet.addEventListener('click', () => {
+            let v = parseInt(inputSets.value) || 1;
+            if (v < 99) inputSets.value = v + 1;
+        });
+
+        btnMinusReps.addEventListener('click', () => {
+            let v = parseInt(inputReps.value) || 50;
+            if (v > 5) inputReps.value = v - 5;
+        });
+        btnPlusReps.addEventListener('click', () => {
+            let v = parseInt(inputReps.value) || 50;
+            if (v < 500) inputReps.value = v + 5;
+        });
+
+        paceBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                paceBtns.forEach(b => {
+                    b.classList.remove('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-400');
+                    b.classList.add('border-slate-700', 'bg-slate-800', 'text-slate-400');
+                });
+                btn.classList.remove('border-slate-700', 'bg-slate-800', 'text-slate-400');
+                btn.classList.add('border-emerald-500', 'bg-emerald-500/20', 'text-emerald-400');
+                selectedPaceMs = parseInt(btn.dataset.pace);
+
+                // Update Advice Card
+                const advice = paceAdviceData[btn.dataset.pace];
+                if (advice) {
+                    adviceTitle.textContent = advice.title;
+                    adviceDesc.textContent = advice.desc;
+                }
+            });
+        });
+
+        // Set Circle Progress Percentage (0 to 1)
+        function setProgress(percent, colorClass = 'text-emerald-500') {
+            const offset = CIRCUMFERENCE - (percent * CIRCUMFERENCE);
+            progressCircle.style.strokeDashoffset = offset;
+            progressCircle.className = `progress-ring__circle ${colorClass}`;
+        }
+
+        // Start Workout Sequence
+        btnStart.addEventListener('click', () => {
+            totalSets = parseInt(inputSets.value) || 3;
+            totalReps = parseInt(inputReps.value) || 50;
+            currentSet = 1;
+            
+            // UI Update
+            setupScreen.classList.add('hidden');
+            workoutScreen.classList.remove('hidden');
+            workoutScreen.classList.add('flex');
+
+            targetRepsDisplay.textContent = `${totalReps}回`;
+            paceTextDisplay.textContent = `${selectedPaceMs / 1000}秒`;
+
+            startInitialCountdown();
+        });
+
+        // 1. Initial 3 Seconds Countdown
+        function startInitialCountdown() {
+            currentState = 'COUNTDOWN';
+            displaySetInfo.textContent = `SET ${currentSet} / ${totalSets}`;
+            remainingSetsDisplay.textContent = `${totalSets - currentSet}`;
+            statusLabel.textContent = '準備';
+            actionGuide.textContent = '位置についてください';
+            actionGuide.className = 'text-amber-400 font-extrabold text-lg h-6';
+
+            let count = 3;
+            mainNumber.textContent = count;
+            setProgress(1, 'text-amber-400');
+            speak("3秒後に開始します");
+            playBeep(600, 'sine', 0.2);
+
+            timerId = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    mainNumber.textContent = count;
+                    setProgress(count / 3, 'text-amber-400');
+                    speak(count.toString());
+                    playBeep(600, 'sine', 0.2);
+                } else {
+                    clearInterval(timerId);
+                    startSquatSet();
+                }
+            }, 1000);
+        }
+
+        // 2. Start Squatting Set
+        function startSquatSet() {
+            currentState = 'SQUATTING';
+            currentRep = 0;
+            displaySetInfo.textContent = `SET ${currentSet} / ${totalSets}`;
+            remainingSetsDisplay.textContent = `${totalSets - currentSet}`;
+            statusLabel.textContent = `スクワット中 (${currentSet}/${totalSets}セット)`;
+            actionGuide.className = 'text-emerald-400 font-extrabold text-lg h-6';
+
+            speak(`${currentSet}セット目、スタート`);
+
+            runSquatLoop();
+        }
+
+        function runSquatLoop() {
+            if (currentState !== 'SQUATTING') return;
+
+            currentRep++;
+            mainNumber.textContent = currentRep;
+            setProgress(currentRep / totalReps, 'text-emerald-500');
+
+            // Audio rep count
+            speak(`${currentRep}`);
+            playBeep(880, 'sine', 0.1);
+
+            // Visual guide during 1 rep cycle (Squat Down -> Stand Up)
+            actionGuide.textContent = 'しゃがむ ↓';
+            const halfPace = selectedPaceMs / 2;
+
+            squatSubTimerId = setTimeout(() => {
+                if (currentState === 'SQUATTING') {
+                    actionGuide.textContent = '立ち上がる ↑';
+                }
+            }, halfPace);
+
+            if (currentRep < totalReps) {
+                timerId = setTimeout(runSquatLoop, selectedPaceMs);
+            } else {
+                // Set Completed
+                timerId = setTimeout(() => {
+                    if (currentSet < totalSets) {
+                        startRestPhase();
+                    } else {
+                        completeWorkout();
+                    }
+                }, selectedPaceMs);
+            }
+        }
+
+        // 3. Rest Phase (15 Seconds)
+        function startRestPhase() {
+            currentState = 'RESTING';
+            statusLabel.textContent = '休憩時間';
+            actionGuide.textContent = '深呼吸してください';
+            actionGuide.className = 'text-sky-400 font-extrabold text-lg h-6';
+
+            speak("セット終了。15秒間休憩してください");
+
+            let restTime = restDurationSec;
+            mainNumber.textContent = restTime;
+            setProgress(1, 'text-sky-400');
+
+            timerId = setInterval(() => {
+                restTime--;
+                if (restTime >= 0) {
+                    mainNumber.textContent = restTime;
+                    setProgress(restTime / restDurationSec, 'text-sky-400');
+                    if (restTime <= 3 && restTime > 0) {
+                        speak(restTime.toString());
+                        playBeep(523.25, 'sine', 0.15);
+                    }
+                } else {
+                    clearInterval(timerId);
+                    currentSet++;
+                    startSquatSet();
+                }
+            }, 1000);
+        }
+
+        // 4. Complete Workout
+        function completeWorkout() {
+            currentState = 'COMPLETED';
+            statusLabel.textContent = 'トレーニング完了';
+            mainNumber.textContent = 'CLEAR!';
+            actionGuide.textContent = 'お疲れ様でした！';
+            actionGuide.className = 'text-yellow-400 font-extrabold text-lg h-6 pulse-animation';
+            setProgress(1, 'text-yellow-400');
+
+            speak("お疲れ様でした！すべてのスクワットが完了しました！");
+            playBeep(523.25, 'triangle', 0.2);
+            setTimeout(() => playBeep(659.25, 'triangle', 0.2), 200);
+            setTimeout(() => playBeep(783.99, 'triangle', 0.4), 400);
+
+            btnPause.classList.add('hidden');
+        }
+
+        // Pause & Resume Logic
+        btnPause.addEventListener('click', () => {
+            if (currentState === 'PAUSED') {
+                // Resume
+                currentState = previousStateBeforePause;
+                pauseIcon.className = 'fa-solid fa-pause';
+                pauseText.textContent = '一時停止';
+
+                if (currentState === 'COUNTDOWN') {
+                    startInitialCountdown();
+                } else if (currentState === 'SQUATTING') {
+                    runSquatLoop();
+                } else if (currentState === 'RESTING') {
+                    startRestPhase();
+                }
+            } else if (currentState !== 'IDLE' && currentState !== 'COMPLETED') {
+                // Pause
+                previousStateBeforePause = currentState;
+                currentState = 'PAUSED';
+                clearTimeout(timerId);
+                clearInterval(timerId);
+                clearTimeout(squatSubTimerId);
+
+                pauseIcon.className = 'fa-solid fa-play';
+                pauseText.textContent = '再開';
+                actionGuide.textContent = '一時停止中';
+                actionGuide.className = 'text-slate-400 font-extrabold text-lg h-6';
+            }
+        });
+
+        // Stop & Reset Logic
+        btnStop.addEventListener('click', () => {
+            clearTimeout(timerId);
+            clearInterval(timerId);
+            clearTimeout(squatSubTimerId);
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+
+            currentState = 'IDLE';
+            btnPause.classList.remove('hidden');
+            pauseIcon.className = 'fa-solid fa-pause';
+            pauseText.textContent = '一時停止';
+
+            workoutScreen.classList.add('hidden');
+            workoutScreen.classList.remove('flex');
+            setupScreen.classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
